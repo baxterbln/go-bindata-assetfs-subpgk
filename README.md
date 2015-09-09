@@ -1,4 +1,4 @@
-# go-bindata-assetfs
+# go-bindata-assetfs-subpgk
 
 Serve embedded files from [jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata) with `net/http`.
 
@@ -20,16 +20,58 @@ The tool will create a `bindata_assetfs.go` file, which contains the embedded da
 
 A typical use case is
 
-    $ go-bindata-assetfs data/...
+    $ go-bindata -pkg="assets" data/...
+	$ go-bindata-assetfs -pkg="assetsfs" data/...
+	
+Move the files in you subfolders, for example "system/assets/" and "system/assetfs/"
 
 ### Using assetFS in your code
 
 The generated file provides an `assetFS()` function that returns a `http.Filesystem`
 wrapping the embedded files. What you usually want to do is:
 
-    http.Handle("/", http.FileServer(assetFS()))
+For a simple fileserver:
+
+    http.Handle("/", http.FileServer(assetfs.AssetFS()))
+	
+To use only for css, js eg...
+	
+	import "./system/assetfs"
+	
+	http.Handle("/js/", http.FileServer(assetfs.AssetFS()))
+	http.Handle("/css/", http.FileServer(assetfs.AssetFS()))
 
 This would run an HTTP server serving the embedded files.
+
+To use it with html/template, a example:
+
+	func RenderTemplate(w http.ResponseWriter, templates []string, name string, data interface{}, app string) error {
+
+		// Load Template Routines
+		finalTemplate := template.New(name)
+	
+		//get parse template files and load it from the Assets
+		for _, file := range templates {
+			asset, err := assets.Asset(file)
+			if err != nil {
+				panic(err)
+			}
+			finalTemplate.Parse(string(asset))
+		}
+	
+		// Execute the template
+		err := finalTemplate.ExecuteTemplate(w, name, data)
+		if err != nil {
+			return err
+		}
+	
+		return nil
+	}
+	
+	func GetBaseTemplates() []string {
+		templates := []string{"views/base/footer.html", "views/base/header.html", "views/base/navbar.html", "views/base.html"}
+		return templates
+	}
 
 ## Without running binary tool
 
@@ -37,10 +79,12 @@ You can always just run the `go-bindata` tool, and then
 
 use
 
-     import "github.com/elazarl/go-bindata-assetfs"
+     import "github.com/baxterbln/go-bindata-assetfs-subpkg"
      ...
      http.Handle("/",
         http.FileServer(
         &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "data"}))
+
+
 
 to serve files embedded from the `data` directory.
